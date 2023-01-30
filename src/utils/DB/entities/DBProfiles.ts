@@ -28,4 +28,11 @@ export default class DBProfiles extends DBEntity<
     this.entities.push(created);
     return created;
   }
+
+  async onUserDelete(userId: string) {
+    const profiles = await this.findMany({ key: 'userId', equals: userId });
+    await Promise.all(profiles.map(profile => {
+      return this.delete(profile.id);
+    }))
+  }
 }

@@ -4,6 +4,7 @@ import { PostType } from "./post-schema";
 import { UserEntity } from "../../../utils/DB/entities/DBUsers";
 import { ProfileType } from "./profiles-schema";
 import { MemberTypeType } from "./member-types-schema";
+import { ContextType } from "../dataloader";
 
 type UsersArgs = {
     userId: string;
@@ -12,7 +13,7 @@ type UsersArgs = {
     email: string;
     updateSubscriptionsUserId: string;
 }
-type UserFields = { [key: string]: GraphQLFieldConfig<unknown, unknown, UsersArgs> };
+type UserFields = { [key: string]: GraphQLFieldConfig<unknown, ContextType, UsersArgs> };
 type UserFieldsType = {
     query: UserFields,
     mutations: UserFields
@@ -41,26 +42,25 @@ export function getUserFields(db: DB): UserFieldsType {
             ...userFields,
             posts: {
                 type: new GraphQLList(PostType),
-                resolve: (source: UserEntity) => {
-                    console.log(source);
-                    const { id } = source;
-                    return db.posts.findMany({ key: 'userId', equals: id });
+                resolve: (user: UserEntity, _, { loaders }: ContextType) => {
+                    const { id } = user;
+                    return loaders.posts.load(id);
                 }
             },
             profile: {
                 type: ProfileType,
-                resolve: (source: UserEntity) => {
-                    const { id } = source;
-                    return db.profiles.findOne({ key: 'userId', equals: id });
+                resolve: (user: UserEntity, _, { loaders }: ContextType) => {
+                    const { id } = user;
+                    return loaders.profiles.load(id);
                 }
             },
             memberType: {
                 type: MemberTypeType,
-                resolve: async (source: UserEntity) => {
+                resolve: async (source: UserEntity, _, { loaders }: ContextType) => {
                     const { id } = source;
-                    const profile = await db.profiles.findOne({ key: 'userId', equals: id });
+                    const profile = await loaders.profiles.load(id);
                     if (profile) {
-                        return db.memberTypes.findOne({ key: 'id', equals: profile?.memberTypeId });
+                        return loaders.memberTypes.load(profile.memberTypeId);
                     } else {
                         return null;
                     }

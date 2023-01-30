@@ -3,21 +3,30 @@ import { GraphQLObjectType, GraphQLString, GraphQLList, GraphQLFieldConfig, Grap
 
 type MemberTypesArgs = {
     memberTypeId: string;
+    discount: number;
+    monthPostsLimit: number;
+    profileIds: string[];
 }
 type MemberTypesFields = { [key: string]: GraphQLFieldConfig<unknown, unknown, MemberTypesArgs> };
+type MemberTypesFieldsType = {
+    query: MemberTypesFields;
+    mutations: MemberTypesFields;
+}
+
+const memberTypeFields: MemberTypesFields = {
+    id: { type: GraphQLString },
+    discount: { type: GraphQLInt },
+    monthPostsLimit: { type: GraphQLInt },
+    profileIds: { type: new GraphQLList(GraphQLString) },
+}
 
 export const MemberTypeType = new GraphQLObjectType({
     name: 'MemberType',
-    fields: () => ({
-        id: { type: GraphQLString },
-        discount: { type: GraphQLInt },
-        monthPostsLimit: { type: GraphQLInt },
-        profileIds: { type: new GraphQLList(GraphQLString) },
-    })
+    fields: memberTypeFields
 });
 
-export function getMemberTypeFields(db: DB): MemberTypesFields {
-    return {
+export function getMemberTypeFields(db: DB): MemberTypesFieldsType {
+    const query: MemberTypesFields = {
         memberTypes: {
             type: new GraphQLList(MemberTypeType),
             resolve: () => {
@@ -35,4 +44,22 @@ export function getMemberTypeFields(db: DB): MemberTypesFields {
             }
         }
     }
+
+    const memberTypeArgs = {
+        ...memberTypeFields,
+        memberTypeId: { type: GraphQLString }
+    }
+
+    const mutations: MemberTypesFields = {
+        updateMemberType: {
+            type: MemberTypeType,
+            args: memberTypeArgs,
+            resolve: (_, args) => {
+                const { memberTypeId, ...dto } = args;
+                return db.memberTypes.change(memberTypeId, dto);
+            }
+        }
+    }
+
+    return { query, mutations };
 }

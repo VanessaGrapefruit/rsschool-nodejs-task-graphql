@@ -3,21 +3,30 @@ import { GraphQLObjectType, GraphQLString, GraphQLList, GraphQLFieldConfig } fro
 
 type PostsArgs = {
     postId: string;
+    title: string;
+    content: string;
+    userId: string;
 }
 type PostsFields = { [key: string]: GraphQLFieldConfig<unknown, unknown, PostsArgs> };
+type PostsFieldsType = {
+    query: PostsFields;
+    mutations: PostsFields
+};
+
+const postsFields: PostsFields = {
+    id: { type: GraphQLString },
+    title: { type: GraphQLString },
+    content: { type: GraphQLString },
+    userId: { type: GraphQLString },
+}
 
 export const PostType = new GraphQLObjectType({
     name: 'Post',
-    fields: () => ({
-        id: { type: GraphQLString },
-        title: { type: GraphQLString },
-        content: { type: GraphQLString },
-        userId: { type: GraphQLString },
-    })
+    fields: postsFields
 });
 
-export function getPostFields(db: DB): PostsFields {
-    return {
+export function getPostFields(db: DB): PostsFieldsType {
+    const query: PostsFields = {
         posts: {
             type: new GraphQLList(PostType),
             resolve: () => {
@@ -35,4 +44,31 @@ export function getPostFields(db: DB): PostsFields {
             }
         }
     }
+
+    const postArgs = {
+        ...postsFields,
+        postId: { type: GraphQLString }
+    }
+
+    const mutations: PostsFields = {
+        createPost: {
+            type: PostType,
+            args: postArgs,
+            resolve: async (_, args) => {
+                const post = await db.posts.create(args);
+                await db.onPostCreate(post);
+                return post;
+            }
+        },
+        updatePost: {
+            type: PostType,
+            args: postArgs,
+            resolve: async (_, args) => {
+                const { postId, ...dto } = args;
+                return db.posts.change(postId, dto);
+            }
+        }
+    }
+
+    return { query, mutations };
 }

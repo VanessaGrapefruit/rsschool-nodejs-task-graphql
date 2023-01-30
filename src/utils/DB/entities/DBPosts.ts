@@ -23,4 +23,11 @@ export default class DBPosts extends DBEntity<
     this.entities.push(created);
     return created;
   }
+
+  async onUserDelete(userId: string) {
+    const posts = await this.findMany({ key: 'userId', equals: userId });
+    await Promise.all(posts.map(post => {
+      return this.delete(post.id);
+    }))
+  }
 }
